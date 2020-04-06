@@ -118,14 +118,24 @@ module emu
 	// 1 - D-/TX
 	// 2..6 - USR2..USR6
 	// Set USER_OUT to 1 to read from USER_IN.
-	input   [6:0] USER_IN,
-	output  [6:0] USER_OUT,
+	output	USER_OSD,
+output	USER_MODE,
+input	[7:0] USER_IN,
+output	[7:0] USER_OUT,
 
 	input         OSD_STATUS
 );
 
 assign ADC_BUS  = 'Z;
-assign USER_OUT = '1;
+//assign USER_OUT  = '1;
+
+wire   joy_split, joy_mdsel;
+wire   [5:0] joy_in = {USER_IN[6],USER_IN[3],USER_IN[5],USER_IN[7],USER_IN[1],USER_IN[2]};
+assign USER_OUT  = |status[63:62] ? {3'b111,joy_split,3'b111,joy_mdsel} : '1;
+assign USER_MODE = |status[63:62] ;
+assign USER_OSD  = joydb9md_1[7] & joydb9md_1[5];
+
+
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign BUTTONS   = osd_btn;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
@@ -188,6 +198,8 @@ localparam CONF_STR = {
 	"O89,Auto Region,File Ext,Header,Disabled;",
 	"D2ORS,Priority,US>EU>JP,EU>US>JP,US>JP>EU,JP>US>EU;",
 	"-;",
+	"oUV,Serial SNAC DB9MD,Off,1 Player,2 Players;",
+	"-;",
 	"C,Cheats;",
 	"H1OO,Cheats Enabled,Yes,No;",
 	"-;",
@@ -226,9 +238,29 @@ localparam CONF_STR = {
 	"V,v",`BUILD_DATE
 };
 
+
 wire [63:0] status;
-wire  [1:0] buttons;
-wire [11:0] joystick_0,joystick_1,joystick_2,joystick_3;
+wire [1:0] buttons;
+wire [11:0] joystick_0_USB,joystick_1_USB,joystick_2_USB,joystick_3_USB;
+
+// ZYX M S CBA UDLR
+wire [11:0] joystick_0 = |status[63:62] ? {joydb9md_1[11:7],joydb9md_1[5],joydb9md_1[4],joydb9md_1[6],joydb9md_1[3:0]} : joystick_0_USB;
+wire [11:0] joystick_1 =  status[63]    ? {joydb9md_2[11:7],joydb9md_2[5],joydb9md_2[4],joydb9md_2[6],joydb9md_2[3:0]} : status[62] ? joystick_0_USB : joystick_1_USB;
+wire [11:0] joystick_2 =  status[63]    ? joystick_0_USB : status[62] ? joystick_1_USB : joystick_2_USB;
+wire [11:0] joystick_3 =  status[63]    ? joystick_1_USB : status[62] ? joystick_2_USB : joystick_3_USB;
+
+
+reg [11:0] joydb9md_1,joydb9md_2;
+joy_db9md joy_db9md
+(
+  .clk       ( clk_sys    ), //35-50MHz
+  .joy_split ( joy_split  ),
+  .joy_mdsel ( joy_mdsel  ),
+  .joy_in    ( joy_in     ),
+  .joystick1 ( joydb9md_1 ),
+  .joystick2 ( joydb9md_2 )	  
+);
+
 wire        ioctl_download;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
@@ -262,10 +294,10 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 
 	.conf_str(CONF_STR),
 
-	.joystick_0(joystick_0),
-	.joystick_1(joystick_1),
-	.joystick_2(joystick_2),
-	.joystick_3(joystick_3),
+	.joystick_0(joystick_0_USB),
+	.joystick_1(joystick_1_USB),
+	.joystick_2(joystick_2_USB),
+	.joystick_3(joystick_3_USB),
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.new_vmode(new_vmode),
@@ -297,6 +329,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.gamma_bus(gamma_bus),
 	.sdram_sz(sdram_sz),
 
+	.joy_raw({joydb9md_1[4],joydb9md_1[6],joydb9md_1[3:0]}),
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse)
 );
