@@ -119,15 +119,14 @@ module emu
 	// 2..6 - USR2..USR6
 	// Set USER_OUT to 1 to read from USER_IN.
 	output	USER_OSD,
-output	USER_MODE,
-input	[7:0] USER_IN,
-output	[7:0] USER_OUT,
+	output	USER_MODE,
+	input	[7:0] USER_IN,
+	output	[7:0] USER_OUT,
 
 	input         OSD_STATUS
 );
 
 assign ADC_BUS  = 'Z;
-//assign USER_OUT  = '1;
 
 wire   joy_split, joy_mdsel;
 wire   [5:0] joy_in = {USER_IN[6],USER_IN[3],USER_IN[5],USER_IN[7],USER_IN[1],USER_IN[2]};
@@ -187,7 +186,7 @@ assign LED_USER  = cart_download | sav_pending;
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXX                             
+// XXXXXXXXXXXX XXXXXXXX  XXXXXXXXX XXXXXXXX                          
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -219,7 +218,7 @@ localparam CONF_STR = {
 	"-;",
 	"O4,Swap Joysticks,No,Yes;",
 	"O5,6 Buttons Mode,No,Yes;",
-	"OLM,Multitap,Disabled,4-Way,TeamPlayer,J-Cart;",
+	"o57,Multitap,Disabled,4-Way,TeamPlayer: Port1,TeamPlayer: Port2,J-Cart;",
 	"OIJ,Mouse,None,Port1,Port2;",
 	"OK,Mouse Flip Y,No,Yes;",
 	"-;",
@@ -298,6 +297,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.joystick_1(joystick_1_USB),
 	.joystick_2(joystick_2_USB),
 	.joystick_3(joystick_3_USB),
+	.joystick_4(joystick_4),
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.new_vmode(new_vmode),
@@ -462,7 +462,8 @@ system system
 	.JOY_2(status[4] ? joystick_0 : joystick_1),
 	.JOY_3(joystick_2),
 	.JOY_4(joystick_3),
-	.MULTITAP(status[22:21]),
+	.JOY_5(joystick_4),
+	.MULTITAP(status[39:37]),
 
 	.MOUSE(ps2_mouse),
 	.MOUSE_OPT(status[20:18]),
