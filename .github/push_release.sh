@@ -5,6 +5,11 @@ set -euo pipefail
 CORE_NAME="Genesis"
 MAIN_BRANCH="master"
 
+if [[ "$(git log -n 1 --pretty=format:%an)" == "The CI/CD Bot" ]] ; then
+    echo "The CI/CD Bot doesn't deliver a new release."
+    exit 0
+fi
+
 RELEASE_FILE="${CORE_NAME}_$(date +%Y%m%d).rbf"
 echo "Creating release ${RELEASE_FILE}."
 
