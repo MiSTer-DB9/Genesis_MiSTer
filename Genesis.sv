@@ -272,9 +272,11 @@ wire [24:0] ps2_mouse;
 wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
-// M S F6 F5 F4 F3 F2 F1 U D L R 
-wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1) : joystick_0_USB;
-wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// BA 987 654 3210
+// MS ZYX CBA UDLR
+// ZY XMS
+wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : {joydb_1[8],joydb_1[7],joydb_1[11],joydb_1[10],joydb_1[9],joydb_1[7:0]}) : joystick_0_USB;
+wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : {joydb_2[8],joydb_2[7],joydb_2[11],joydb_2[10],joydb_2[9],joydb_2[7:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
 wire [31:0] joystick_2 = joydb_2ena ? joystick_0_USB : joydb_1ena ? joystick_1_USB : joystick_2_USB;
 wire [31:0] joystick_3 = joydb_2ena ? joystick_1_USB : joydb_1ena ? joystick_2_USB : joystick_3_USB;
 
