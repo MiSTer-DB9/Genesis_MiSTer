@@ -132,7 +132,7 @@ wire   [2:0] JOY_FLAG  = {status[62],status[63],status[61]}; //Assign 3 bits of 
 wire         JOY_CLK, JOY_LOAD, JOY_SPLIT, JOY_MDSEL;
 wire   [5:0] JOY_MDIN  = JOY_FLAG[2] ? {USER_IN[6],USER_IN[3],USER_IN[5],USER_IN[7],USER_IN[1],USER_IN[2]} : '1;
 wire         JOY_DATA  = JOY_FLAG[1] ? USER_IN[5] : '1;
-assign       USER_OUT  = JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
+//assign       USER_OUT  = JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
 assign       USER_MODE = JOY_FLAG[2:1] ;
 assign       USER_OSD  = joydb_1[10] & joydb_1[6];
 
@@ -1002,7 +1002,7 @@ wire [7:0] SERJOYSTICK_IN;
 wire [7:0] SERJOYSTICK_OUT;
 wire [1:0] SER_OPT;
 
-/* always @(posedge clk_sys) begin
+always @(posedge clk_sys) begin
 	if (status[45]) begin
 		SERJOYSTICK_IN[0] <= USER_IN[1];//up
 		SERJOYSTICK_IN[1] <= USER_IN[0];//down	
@@ -1023,8 +1023,9 @@ wire [1:0] SER_OPT;
 		USER_OUT[4] <= SERJOYSTICK_OUT[6];
 	end else begin
 		SER_OPT  <= 0;
-		USER_OUT <= '1;
+		USER_OUT <= JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
+		//USER_OUT <= '1;
 	end
-end */
+end
 
 endmodule
