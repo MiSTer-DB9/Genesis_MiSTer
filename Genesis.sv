@@ -1002,7 +1002,7 @@ wire [7:0] SERJOYSTICK_IN;
 wire [7:0] SERJOYSTICK_OUT;
 wire [1:0] SER_OPT;
 
-always @(posedge clk_sys) begin
+/* always @(posedge clk_sys) begin
 	if (status[45]) begin
 		SERJOYSTICK_IN[0] <= USER_IN[1];//up
 		SERJOYSTICK_IN[1] <= USER_IN[0];//down	
@@ -1025,6 +1025,6 @@ always @(posedge clk_sys) begin
 		SER_OPT  <= 0;
 		USER_OUT <= '1;
 	end
-end
+end */
 
 endmodule
