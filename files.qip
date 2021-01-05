@@ -1,7 +1,5 @@
 set_global_assignment -name QIP_FILE rtl/FX68K/fx68k.qip
 set_global_assignment -name QIP_FILE rtl/T80/T80.qip
-set_global_assignment -name VERILOG_FILE joydb9md.v
-set_global_assignment -name VERILOG_FILE joydb15.v
 set_global_assignment -name QIP_FILE rtl/jt12/jt12.qip
 set_global_assignment -name QIP_FILE rtl/jt89/jt89.qip
 set_global_assignment -name QIP_FILE rtl/SVP/SVP.qip
@@ -24,3 +22,5 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/multitap.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/system.sv
 set_global_assignment -name SDC_FILE Genesis.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE Genesis.sv
+set_global_assignment -name VERILOG_FILE rtl/joydb9md.v
+set_global_assignment -name VERILOG_FILE rtl/joydb15.v
