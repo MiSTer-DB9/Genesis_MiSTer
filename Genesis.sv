@@ -128,6 +128,8 @@ module emu
 	input         OSD_STATUS
 );
 
+//`define DEBUG_BUILD
+
 assign ADC_BUS  = 'Z;
 wire         CLK_JOY = CLK_50M;         //Assign clock between 40-50Mhz
 wire   [2:0] JOY_FLAG  = {status[62],status[63],status[61]}; //Assign 3 bits of status (31:29) o (63:61)
@@ -187,7 +189,7 @@ assign LED_USER  = cart_download | sav_pending;
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXX X XXXXXXXXXXXXXXXXXXX XX XXXXXXXXXXXXXXX             
+// XXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XX XXXXXXXXXXXXXXX             
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -217,6 +219,7 @@ localparam CONF_STR = {
 	"P1-;",
 	"P1OT,Border,No,Yes;",
 	"P1oEF,Composite Blend,Off,On,Adaptive;",
+	"P1OA,CRAM Dots,Off,On;",
 	"P1-;",
 	"P1OEF,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
 	"P1OB,FM Chip,YM2612,YM3438;",
@@ -490,6 +493,7 @@ system system
 	.HBL(hblank),
 	.VBL(vblank),
 	.BORDER(status[29]),
+	.CRAM_DOTS(status[10]),
 	.CE_PIX(ce_pix),
 	.FIELD(VGA_F1),
 	.INTERLACE(interlace),
@@ -504,8 +508,8 @@ system system
 	.GG_AVAILABLE(gg_available),
 
 	.J3BUT(~status[5]),
-	.JOY_1(status[4] ? joystick_1 : joystick_0),
-	.JOY_2(status[4] ? joystick_0 : joystick_1),
+	.JOY_1(status[4] ^ status[45] ? joystick_1 : joystick_0),
+	.JOY_2(status[4] ^ status[45] ? joystick_0 : joystick_1),
 	.JOY_3(joystick_2),
 	.JOY_4(joystick_3),
 	.JOY_5(joystick_4),
@@ -554,7 +558,12 @@ system system
 	.ROM_REQ2(rom_rd2),
 	.ROM_ACK2(rom_rdack2),
 
-	.TRANSP_DETECT(TRANSP_DETECT)
+	.TRANSP_DETECT(TRANSP_DETECT),
+	
+	.PAUSE_EN(DBG_PAUSE_EN),
+	.BGA_EN(VDP_BGA_EN),
+	.BGB_EN(VDP_BGB_EN),
+	.SPR_EN(VDP_SPR_EN)
 );
 
 wire TRANSP_DETECT;
@@ -1034,8 +1043,8 @@ always @(posedge clk_sys) begin
 		SERJOYSTICK_IN[5] <= USER_IN[6];//c TR GPIO7   
 		SERJOYSTICK_IN[6] <= USER_IN[0];//  TH
 		SERJOYSTICK_IN[7] <= 0;
-		SER_OPT[0] <= status[4];
-		SER_OPT[1] <= ~status[4];
+		SER_OPT[0] <= ~status[4];
+		SER_OPT[1] <= status[4];
 		USER_OUT[1] <= SERJOYSTICK_OUT[2];
 		USER_OUT[0] <= SERJOYSTICK_OUT[6];
 		USER_OUT[5] <= SERJOYSTICK_OUT[0];
@@ -1049,5 +1058,33 @@ always @(posedge clk_sys) begin
 		//USER_OUT <= '1;
 	end
 end
+
+
+//debug
+reg       VDP_BGA_EN = 1;
+reg       VDP_BGB_EN = 1;
+reg       VDP_SPR_EN = 1;
+reg [1:0] VDP_GRID_EN = '0;
+reg       DBG_PAUSE_EN = 0;
+
+`ifdef DEBUG_BUILD
+
+always @(posedge clk_sys) begin
+	reg old_state = 0;
+
+	old_state <= ps2_key[10];
+
+	if((ps2_key[10] != old_state) && pressed) begin
+		casex(code)
+			'h003: begin VDP_BGA_EN <= ~VDP_BGA_EN; end 	// F5
+			'h00B: begin VDP_BGB_EN <= ~VDP_BGB_EN; end 	// F6
+			'h083: begin VDP_SPR_EN <= ~VDP_SPR_EN; end 	// F7
+			'h00A: begin VDP_GRID_EN <= VDP_GRID_EN + 2'd1; end 	// F8
+			'h001: begin DBG_PAUSE_EN <= ~DBG_PAUSE_EN; end 	// F9
+		endcase
+	end
+end
+
+`endif
 
 endmodule
