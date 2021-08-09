@@ -49,6 +49,7 @@ module system
 	input         EXPORT,
 	input         FAST_FIFO,
 	input         SRAM_QUIRK,
+	input         SRAM00_QUIRK,
 	input         EEPROM_QUIRK,
 	input         NORAM_QUIRK,
 	input         PIER_QUIRK,
@@ -276,6 +277,7 @@ fx68k M68K
 	.BGn(M68K_BG_N),
 	.BRn(M68K_BR_N),
 	.BGACKn(M68K_BGACK_N),
+	.HALTn(1),
 
 	.DTACKn(M68K_MBUS_DTACK_N),
 	.VPAn(~M68K_INTACK),
@@ -283,7 +285,7 @@ fx68k M68K
 	.IPL0n(M68K_IPL_N[0]),
 	.IPL1n(M68K_IPL_N[1]),
 	.IPL2n(M68K_IPL_N[2]),
-	.iEdb(genie_ovr ? genie_data : M68K_MBUS_D),
+	.iEdb(genie_data),
 	.oEdb(M68K_DO),
 	.eab(M68K_A)
 );
@@ -296,19 +298,17 @@ assign DBG_VBUS_A = {VBUS_A,1'b0};
 // CHEAT CODES
 //--------------------------------------------------------------
 
-wire genie_ovr;
 wire [15:0] genie_data;
-
-CODES #(.ADDR_WIDTH(24), .DATA_WIDTH(16)) codes (
+CODES #(.ADDR_WIDTH(24), .DATA_WIDTH(16), .BIG_ENDIAN(1)) codes
+(
 	.clk(MCLK),
 	.reset(LOADING | GG_RESET),
 	.enable(~GG_EN),
-	.addr_in({M68K_A[23:1], 1'b0}),
-	.data_in(M68K_MBUS_D),
 	.code(GG_CODE),
 	.available(GG_AVAILABLE),
-	.genie_ovr(genie_ovr),
-	.genie_data(genie_data)
+	.addr_in({M68K_A[23:1], 1'b0}),
+	.data_in(M68K_MBUS_D),
+	.data_out(genie_data)
 );
 
 
@@ -650,7 +650,8 @@ dpram_dif #(17,8,16,16) sram
 	.q_a(sram_q),
 
 	.address_b(LOADING ? ram_rst_a : SVP_QUIRK ? SVP_DRAM_A : BRAM_A),
-	.data_b(LOADING ? 16'h0000 : SVP_QUIRK ? SVP_DRAM_DO : BRAM_DI),
+	// Initializes SRAM to 0x0 for Sonic 1 Remastered, all other games have SRAM initialized to 0xFF
+	.data_b(LOADING ? (SRAM00_QUIRK ? 16'h0000 : 16'hFFFF) : SVP_QUIRK ? SVP_DRAM_DO : BRAM_DI),
 	.wren_b(LOADING | SVP_DRAM_WE | BRAM_WE),
 	.q_b(BRAM_DO)
 );
@@ -918,7 +919,7 @@ always @(posedge MCLK) begin
 						data <= 0;
 						mstate <= MBUS_FINISH;
 					end
-					else if (SRAM_QUIRK && {MBUS_A,1'b0} == 'h200000) begin
+					else if ((SRAM_QUIRK | SRAM00_QUIRK) && {MBUS_A,1'b0} == 'h200000) begin
 						SRAM_SEL <= 1;
 						mstate <= MBUS_SRAM_READ;
 					end
@@ -1173,9 +1174,9 @@ always @(posedge MCLK) begin
 						VDP_MBUS_DTACK_N <= 0;
 						mstate <= MBUS_IDLE;
 					end
-				endcase;
+				endcase
 			end
-		endcase;
+		endcase
 	end
 end
 
