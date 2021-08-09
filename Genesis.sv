@@ -56,8 +56,9 @@ module emu
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
+	output        HDMI_FREEZE,
 
-`ifdef USE_FB
+`ifdef MISTER_FB
 	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
 	// FB_FORMAT:
 	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
@@ -75,6 +76,7 @@ module emu
 	input         FB_LL,
 	output        FB_FORCE_BLANK,
 
+`ifdef MISTER_FB_PALETTE
 	// Palette control for 8bit modes.
 	// Ignored for other video modes.
 	output        FB_PAL_CLK,
@@ -82,6 +84,7 @@ module emu
 	output [23:0] FB_PAL_DOUT,
 	input  [23:0] FB_PAL_DIN,
 	output        FB_PAL_WR,
+`endif
 `endif
 
 	output        LED_USER,  // 1 - ON, 0 - OFF.
@@ -113,7 +116,6 @@ module emu
 	output        SD_CS,
 	input         SD_CD,
 
-`ifdef USE_DDRAM
 	//High latency DDR3 RAM interface
 	//Use for non-critical time purposes
 	output        DDRAM_CLK,
@@ -126,9 +128,7 @@ module emu
 	output [63:0] DDRAM_DIN,
 	output  [7:0] DDRAM_BE,
 	output        DDRAM_WE,
-`endif
 
-`ifdef USE_SDRAM
 	//SDRAM interface with lower latency
 	output        SDRAM_CLK,
 	output        SDRAM_CKE,
@@ -141,10 +141,10 @@ module emu
 	output        SDRAM_nCAS,
 	output        SDRAM_nRAS,
 	output        SDRAM_nWE,
-`endif
 
-`ifdef DUAL_SDRAM
+`ifdef MISTER_DUAL_SDRAM
 	//Secondary SDRAM
+	//Set all output SDRAM_* signals to Z ASAP if SDRAM2_EN is 0
 	input         SDRAM2_EN,
 	output        SDRAM2_CLK,
 	output [12:0] SDRAM2_A,
@@ -201,6 +201,7 @@ assign VGA_SCALER= 0;
 
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = 0;
+assign HDMI_FREEZE = 0;
 
 wire [1:0] ar = status[49:48];
 wire [7:0] arx,ary;
@@ -399,12 +400,10 @@ joy_db15 joy_db15
 
 
 
-hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
+hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
-
-	.conf_str(CONF_STR),
 
 	.joystick_0(joystick_0_USB),
 	.joystick_1(joystick_1_USB),
@@ -430,13 +429,13 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ioctl_dout(ioctl_data),
 	.ioctl_wait(ioctl_wait),
 
-	.sd_lba(sd_lba),
+	.sd_lba('{sd_lba}),
 	.sd_rd(sd_rd),
 	.sd_wr(sd_wr),
 	.sd_ack(sd_ack),
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din),
+	.sd_buff_din('{sd_buff_din}),
 	.sd_buff_wr(sd_buff_wr),
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
@@ -545,6 +544,7 @@ system system
 	.EXPORT(|status[7:6]),
 	.PAL(PAL),
 	.SRAM_QUIRK(sram_quirk),
+	.SRAM00_QUIRK(sram00_quirk),
 	.EEPROM_QUIRK(eeprom_quirk),
 	.NORAM_QUIRK(noram_quirk),
 	.PIER_QUIRK(pier_quirk),
@@ -729,6 +729,7 @@ video_mixer #(.LINE_LENGTH(320), .HALF_DEPTH(0), .GAMMA(1)) video_mixer
 
 	.scandoubler(~interlace && (scale || forced_scandoubler)),
 	.hq2x(scale==1),
+	.freeze_sync(),
 
 	.VGA_DE(vga_de),
 	.R((lg_target && gun_mode && (~&status[44:43])) ? {8{lg_target[0]}} : red),
@@ -948,6 +949,7 @@ always @(posedge clk_sys) begin
 end
 
 reg sram_quirk = 0;
+reg sram00_quirk = 0;
 reg eeprom_quirk = 0;
 reg fifo_quirk = 0;
 reg noram_quirk = 0;
@@ -962,7 +964,7 @@ always @(posedge clk_sys) begin
 	reg old_download;
 	old_download <= cart_download;
 
-	if(~old_download && cart_download) {fifo_quirk,eeprom_quirk,sram_quirk,noram_quirk,pier_quirk,svp_quirk,fmbusy_quirk,schan_quirk} <= 0;
+	if(~old_download && cart_download) {fifo_quirk,eeprom_quirk,sram_quirk,sram00_quirk,noram_quirk,pier_quirk,svp_quirk,fmbusy_quirk,schan_quirk} <= 0;
 
 	if(ioctl_wr & cart_download) begin
 		if(ioctl_addr == 'h182) cart_id[63:56] <= ioctl_data[15:8];
@@ -995,6 +997,7 @@ always @(posedge clk_sys) begin
 			else if(cart_id == "T-25073 ") fmbusy_quirk <= 1; // Hellfire JP
 			else if(cart_id == "MK-1137-") fmbusy_quirk <= 1; // Hellfire EU
 			else if(cart_id == "T-68???-") schan_quirk  <= 1; // Game no Kanzume Otokuyou
+			else if(cart_id == " GM 0000") sram00_quirk <= 1; // Sonic 1 Remastered
 			
 			// Lightgun device and timing offsets
 			if(cart_id == "MK-1533 ") begin						  // Body Count
@@ -1130,7 +1133,7 @@ end
 reg       VDP_BGA_EN = 1;
 reg       VDP_BGB_EN = 1;
 reg       VDP_SPR_EN = 1;
-reg [1:0] VDP_GRID_EN = '0;
+//reg [1:0] VDP_GRID_EN = '0;
 reg       DBG_PAUSE_EN = 0;
 
 `ifdef DEBUG_BUILD
@@ -1145,7 +1148,7 @@ always @(posedge clk_sys) begin
 			'h003: begin VDP_BGA_EN <= ~VDP_BGA_EN; end 	// F5
 			'h00B: begin VDP_BGB_EN <= ~VDP_BGB_EN; end 	// F6
 			'h083: begin VDP_SPR_EN <= ~VDP_SPR_EN; end 	// F7
-			'h00A: begin VDP_GRID_EN <= VDP_GRID_EN + 2'd1; end 	// F8
+			//'h00A: begin VDP_GRID_EN <= VDP_GRID_EN + 2'd1; end 	// F8
 			'h001: begin DBG_PAUSE_EN <= ~DBG_PAUSE_EN; end 	// F9
 		endcase
 	end
