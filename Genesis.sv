@@ -264,7 +264,7 @@ localparam CONF_STR = {
 	"FS,BINGENMD ;",
 	"-;",
 	"O67,Region,JP,US,EU;",
-	"O89,Auto Region,File Ext,Header,Disabled;",
+	"O89,Auto Region,Header,File Ext,Disabled;",
 	"D2ORS,Priority,US>EU>JP,EU>US>JP,US>JP>EU,JP>US>EU;",
 	"-;",
 	"oUV,UserIO Joystick,Off,DB9MD,DB15 ;",
@@ -410,8 +410,8 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.joystick_2(joystick_2_USB),
 	.joystick_3(joystick_3_USB),
 	.joystick_4(joystick_4),
-	.joystick_analog_0({joy0_y, joy0_x}),
-	.joystick_analog_1({joy1_y, joy1_x}),
+	.joystick_l_analog_0({joy0_y, joy0_x}),
+	.joystick_l_analog_1({joy1_y, joy1_x}),
 
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
@@ -882,7 +882,7 @@ always @(posedge clk_sys) begin
 
 	old_ready <= cart_hdr_ready;
 	if(~status[9] & ~old_ready & cart_hdr_ready) begin
-		if(status[8]) begin
+		if(~status[8]) begin
 			region_set <= 1;
 			case(status[28:27])
 				0: if(hdr_u) region_req <= 1;
