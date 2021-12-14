@@ -420,7 +420,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.status(status),
 	.status_in({status[63:8],region_req,status[5:0]}),
 	.status_set(region_set),
-	.status_menumask({en216p,!gun_mode,~dbg_menu,~status[8],~gg_available,~bk_ena}),
+	.status_menumask({en216p,!gun_mode,~dbg_menu,status[8],~gg_available,~bk_ena}),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
