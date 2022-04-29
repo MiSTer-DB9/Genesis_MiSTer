@@ -293,7 +293,7 @@ localparam CONF_STR = {
 	"P1OA,CRAM Dots,Off,On;",
 	"P1-;",
 	"P1OEF,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
-	"P1OB,FM Chip,YM2612,YM3438;",
+	//"P1OB,FM Chip,YM2612,YM3438;",
 	"P1ON,HiFi PCM,No,Yes;",
 
 	"P2,Input;",
