@@ -179,6 +179,7 @@ module emu
 //`define DEBUG_BUILD
 
 assign ADC_BUS  = 'Z;
+//assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 wire         CLK_JOY = CLK_50M;         //Assign clock between 40-50Mhz
 wire   [2:0] JOY_FLAG  = {status[62],status[63],status[61]}; //Assign 3 bits of status (31:29) o (63:61)
 wire         JOY_CLK, JOY_LOAD, JOY_SPLIT, JOY_MDSEL;
@@ -189,7 +190,6 @@ assign       USER_MODE = JOY_FLAG[2:1] ;
 assign       USER_OSD  = joydb_1[10] & joydb_1[6];
 
 
-assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign BUTTONS   = osd_btn;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -256,11 +256,11 @@ video_freak video_freak
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 localparam CONF_STR = {
-	"Genesis;;",
+	"Genesis;UART31250,MIDI;",
 	"FS,BINGENMD ;",
 	"-;",
 	"O67,Region,JP,US,EU;",
@@ -293,7 +293,7 @@ localparam CONF_STR = {
 	"P1OA,CRAM Dots,Off,On;",
 	"P1-;",
 	"P1OEF,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
-	//"P1OB,FM Chip,YM2612,YM3438;",
+	"P1OB,FM Chip,YM2612,YM3438;",
 	"P1ON,HiFi PCM,No,Yes;",
 
 	"P2,Input;",
@@ -310,6 +310,7 @@ localparam CONF_STR = {
 	"P2o89,Gun Control,Disabled,Joy1,Joy2,Mouse;",
 	"D4P2oA,Gun Fire,Joy,Mouse;",
 	"D4P2oBC,Cross,Small,Medium,Big,None;",
+	"P2oO,Miracle Piano,No,Yes;",
 
 	"P3,Miscellaneous;",
 	"P3-;",
@@ -1180,12 +1181,43 @@ always @(posedge clk_sys) begin
 		USER_OUT[2] <= SERJOYSTICK_OUT[3];
 		USER_OUT[6] <= SERJOYSTICK_OUT[5];
 		USER_OUT[7] <= SERJOYSTICK_OUT[1];
+	end else if (piano) begin
+		SERJOYSTICK_IN[0] <= piano_joypad_do;//up
+		SERJOYSTICK_IN[1] <= 0;//down	
+		SERJOYSTICK_IN[2] <= 0;//left	
+		SERJOYSTICK_IN[3] <= 0;//right
+		SERJOYSTICK_IN[4] <= 0;//b TL		
+		SERJOYSTICK_IN[5] <= 0;//c TR GPIO7			
+		SERJOYSTICK_IN[6] <= 0;//  TH
+		SERJOYSTICK_IN[7] <= 0;
+		SER_OPT[0] <= 1'b0;
+		SER_OPT[1] <= 1'b1;
+		piano_clock <= SERJOYSTICK_OUT[5];
+		piano_strobe <= SERJOYSTICK_OUT[6];
 		end else begin
 		SER_OPT  <= 0;
 		USER_OUT <= JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
 		//USER_OUT <= '1;
 	end
 end
+
+
+assign {UART_RTS, UART_DTR} = 1;
+wire [15:0] uart_data;
+wire piano_joypad_do;
+wire piano_clock;
+wire piano_strobe;
+wire piano = status[56];
+miraclepiano miracle(
+	.clk(clk_sys),
+	.reset(reset || !piano),
+	.strobe(piano_strobe),
+	.joypad_o(piano_joypad_do),
+	.joypad_clock(piano_clock),
+	.data_o(uart_data),
+	.txd(UART_TXD),
+	.rxd(UART_RXD)
+);
 
 
 //debug
