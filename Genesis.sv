@@ -53,13 +53,14 @@ module emu
 	output        VGA_F1,
 	output [1:0]  VGA_SL,
 	output        VGA_SCALER, // Force VGA scaler
+	output        VGA_DISABLE, // analog out is off
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
 	output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
-	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
+	// Use framebuffer in DDRAM
 	// FB_FORMAT:
 	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
 	//    [3]   : 0=16bits 565 1=16bits 1555
@@ -198,6 +199,7 @@ assign LED_POWER = 0;
 assign LED_USER  = cart_download | sav_pending;
 
 assign VGA_SCALER= 0;
+assign VGA_DISABLE = 0;
 
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = 0;
@@ -273,21 +275,20 @@ localparam CONF_STR = {
 	"C,Cheats;",
 	"H1OO,Cheats Enabled,Yes,No;",
 	"-;",
-	"D0RG,Load Backup RAM;",
-	"D0RH,Save Backup RAM;",
-	"D0OD,Autosave,Off,On;",
+	"OD,Autosave,Off,On;",
+	"H6D0RG,Load Backup RAM;",
+	"H6D0RH,Save Backup RAM;",
 	"-;",
 
 	"P1,Audio & Video;",
 	"P1-;",
-	"P1oGH,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1OU,320x224 Aspect,Original,Corrected;",
+	"P1oGH,Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"P1O13,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-	"P1-;",
 	"d5P1o2,Vertical Crop,Disabled,216p(5x);",
 	"d5P1oIL,Crop Offset,0,2,4,8,10,12,-12,-10,-8,-6,-4,-2;",
 	"P1oMN,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1-;",
+	"P1OU,320x224 Aspect,Original,Corrected;",
 	"P1OT,Border,No,Yes;",
 	"P1oEF,Composite Blend,Off,On,Adaptive;",
 	"P1OA,CRAM Dots,Off,On;",
@@ -300,12 +301,11 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2O4,Swap Joysticks,No,Yes;",
 	"P2O5,6 Buttons Mode,No,Yes;",
+	"P2oD,SNAC,Off,On;",
 	"P2o57,Multitap,Disabled,4-Way,TeamPlayer: Port1,TeamPlayer: Port2,J-Cart;",
 	"P2-;",
 	"P2OIJ,Mouse,None,Port1,Port2;",
 	"P2OK,Mouse Flip Y,No,Yes;",
-	"P2-;",
-	"P2oD,Serial,OFF,SNAC;",
 	"P2-;",
 	"P2o89,Gun Control,Disabled,Joy1,Joy2,Mouse;",
 	"D4P2oA,Gun Fire,Joy,Mouse;",
@@ -421,7 +421,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.status(status),
 	.status_in({status[63:8],region_req,status[5:0]}),
 	.status_set(region_set),
-	.status_menumask({en216p,!gun_mode,~dbg_menu,status[8],~gg_available,~bk_ena}),
+	.status_menumask({status[13],en216p,!gun_mode,~dbg_menu,status[8],~gg_available,~bk_ena}),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -1089,7 +1089,6 @@ always @(posedge clk_sys) begin
 end
 
 /////////////////////////  BRAM SAVE/LOAD  /////////////////////////////
-
 
 wire downloading = cart_download;
 
