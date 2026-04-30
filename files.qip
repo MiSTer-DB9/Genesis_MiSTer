@@ -23,5 +23,3 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/miracle.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/system.sv
 set_global_assignment -name SDC_FILE Genesis.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE Genesis.sv
-set_global_assignment -name VERILOG_FILE rtl/joydb9md.v
-set_global_assignment -name VERILOG_FILE rtl/joydb15.v
