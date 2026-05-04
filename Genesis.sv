@@ -189,8 +189,15 @@ assign ADC_BUS  = 'Z;
 //assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper
 wire         CLK_JOY = CLK_50M;                 // Assign clock between 40-50Mhz
-wire   [1:0] joy_type        = status[127:126]; // 0=Off, 1=Saturn, 2=DB9MD, 3=DB15
+wire   [1:0] joy_type_raw    = status[127:126]; // 0=Off, 1=Saturn, 2=DB9MD, 3=DB15
 wire         joy_2p          = status[125];
+// SNAC priority: when SNAC is enabled, neutralize UserJoy/joydb path.
+// SNAC cores override the RHS of `snac_active` with their per-core SNAC enable
+// signal (e.g. raw_serial, snac, snacPort1|snacPort2). Default 1'b0 means
+// non-SNAC cores behave identically to before. The porter preserves a custom
+// RHS across re-runs (extract_snac_active_rhs).
+wire         snac_active     = status[45];
+wire   [1:0] joy_type        = snac_active ? 2'd0 : joy_type_raw;
 wire         joy_db9md_en    = (joy_type == 2'd2);
 wire         joy_db15_en     = (joy_type == 2'd3);
 wire         joy_any_en      = |joy_type;
