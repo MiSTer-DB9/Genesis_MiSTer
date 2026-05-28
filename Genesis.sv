@@ -1207,13 +1207,6 @@ always @(posedge clk_sys) begin
 		SERJOYSTICK_IN[7] <= 0;
 		SER_OPT[0] <= ~status[4];
 		SER_OPT[1] <= status[4];
-		USER_OUT[1] <= SERJOYSTICK_OUT[2];
-		USER_OUT[0] <= SERJOYSTICK_OUT[6];
-		USER_OUT[5] <= SERJOYSTICK_OUT[0];
-		USER_OUT[3] <= SERJOYSTICK_OUT[4];
-		USER_OUT[2] <= SERJOYSTICK_OUT[3];
-		USER_OUT[6] <= SERJOYSTICK_OUT[5];
-		USER_OUT[7] <= SERJOYSTICK_OUT[1];
 	end else if (piano) begin
 		SERJOYSTICK_IN[0] <= piano_joypad_do;//up
 		SERJOYSTICK_IN[1] <= 0;//down	
@@ -1229,12 +1222,27 @@ always @(posedge clk_sys) begin
 		piano_strobe <= SERJOYSTICK_OUT[6];
 		end else begin
 		SER_OPT  <= 0;
-		// [MiSTer-DB9 BEGIN] - SerJoystick relay falls through to joydb USER_OUT_DRIVE
-		USER_OUT <= USER_OUT_DRIVE;
-		// [MiSTer-DB9 END]
 		//USER_OUT <= '1;
 	end
 end
+
+// [MiSTer-DB9 BEGIN] - combinational USER_OUT relay (zero CDC vs CLK_JOY).
+// Previous clocked latch added a clk_sys/CLK_JOY CDC skew on USER_IO[2] (2P-MUX
+// SEL) vs USER_IO[0] (TH/SELECT) that broke joydb9md's 6-btn MD handshake
+// through the octopod 2P adapter. Mirrors MegaDrive.sv pattern.
+always_comb begin
+	USER_OUT = USER_OUT_DRIVE;
+	if (status[45]) begin
+		USER_OUT[1] = SERJOYSTICK_OUT[2];
+		USER_OUT[0] = SERJOYSTICK_OUT[6];
+		USER_OUT[5] = SERJOYSTICK_OUT[0];
+		USER_OUT[3] = SERJOYSTICK_OUT[4];
+		USER_OUT[2] = SERJOYSTICK_OUT[3];
+		USER_OUT[6] = SERJOYSTICK_OUT[5];
+		USER_OUT[7] = SERJOYSTICK_OUT[1];
+	end
+end
+// [MiSTer-DB9 END]
 
 
 assign {UART_RTS, UART_DTR} = 1;
