@@ -180,8 +180,8 @@ module emu
 );
 
 
-// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: USER_PP default (port_batch replaces with USER_PP_DRIVE)
-assign USER_PP = USER_PP_DRIVE;
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: USER_PP default (SNAC drives TH + splitter SEL push-pull)
+assign USER_PP = snac_active ? 8'b00010001 : USER_PP_DRIVE;
 // [MiSTer-DB9 END]
 //`define DEBUG_BUILD
 
@@ -1240,6 +1240,7 @@ always_comb begin
 		USER_OUT[2] = SERJOYSTICK_OUT[3];
 		USER_OUT[6] = SERJOYSTICK_OUT[5];
 		USER_OUT[7] = SERJOYSTICK_OUT[1];
+		USER_OUT[4] = 1'b0; //1P selects physical P1
 	end
 end
 // [MiSTer-DB9 END]
