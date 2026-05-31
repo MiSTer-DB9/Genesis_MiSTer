@@ -180,8 +180,8 @@ module emu
 );
 
 
-// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: USER_PP default (port_batch replaces with USER_PP_DRIVE)
-assign USER_PP = USER_PP_DRIVE;
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: USER_PP default (SNAC drives TH + splitter SEL push-pull)
+assign USER_PP = snac_active ? 8'b00010001 : USER_PP_DRIVE;
 // [MiSTer-DB9 END]
 //`define DEBUG_BUILD
 
@@ -194,6 +194,12 @@ wire         joy_2p          = status[125];
 // SNAC cores: replace 1'b0 with the core's SNAC enable expression so SNAC
 // preempts the joydb wrapper on shared USER_IO pins. Default 1'b0 is no-op.
 wire         snac_active     = status[45];
+// MT32-pi probe-suppression gate. Auto-detected from MT32 signals declared
+// elsewhere in this file (mt32_disable / mt32_use / mt32_on_primary). Hand-edit
+// if the heuristic missed your core's gate expression. Suppresses the OSD-open
+// autodetect probe so it doesn't read the RPi's I2C master traffic as a ghost
+// Saturn signature. See the fork hazard notes.
+wire         mt32_primary_active = 1'b0;
 wire   [1:0] joy_type        = snac_active ? 2'd0 : joy_type_raw;
 wire         joy_db9md_en    = (joy_type == 2'd2);
 wire         joy_db15_en     = (joy_type == 2'd3);
@@ -217,6 +223,9 @@ wire  [15:0] joy_raw_payload;
 joydb joydb (
   .clk             ( CLK_JOY         ),
   .USER_IN         ( USER_IN         ),
+  .OSD_STATUS          ( OSD_STATUS          ),
+  .snac_active         ( snac_active         ),
+  .mt32_primary_active ( mt32_primary_active ),
   .joy_type        ( joy_type        ),
   .joy_2p          ( joy_2p          ),
   .saturn_unlocked ( saturn_unlocked ),
@@ -437,7 +446,9 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.new_vmode(new_vmode),
 
 	.status(status),
-	.status_in({status[63:8],region_req,status[5:0]}),
+	// [MiSTer-DB9 BEGIN] - widened to 128 bits, preserve [127:64] (joy_type at [127:125], joy_2p at [124])
+	.status_in({status[127:8],region_req,status[5:0]}),
+	// [MiSTer-DB9 END]
 	.status_set(region_set),
 	.status_menumask({status[13],en216p,!gun_mode,~dbg_menu,status[8],~gg_available,~bk_ena}),
 
@@ -1196,13 +1207,6 @@ always @(posedge clk_sys) begin
 		SERJOYSTICK_IN[7] <= 0;
 		SER_OPT[0] <= ~status[4];
 		SER_OPT[1] <= status[4];
-		USER_OUT[1] <= SERJOYSTICK_OUT[2];
-		USER_OUT[0] <= SERJOYSTICK_OUT[6];
-		USER_OUT[5] <= SERJOYSTICK_OUT[0];
-		USER_OUT[3] <= SERJOYSTICK_OUT[4];
-		USER_OUT[2] <= SERJOYSTICK_OUT[3];
-		USER_OUT[6] <= SERJOYSTICK_OUT[5];
-		USER_OUT[7] <= SERJOYSTICK_OUT[1];
 	end else if (piano) begin
 		SERJOYSTICK_IN[0] <= piano_joypad_do;//up
 		SERJOYSTICK_IN[1] <= 0;//down	
@@ -1218,12 +1222,28 @@ always @(posedge clk_sys) begin
 		piano_strobe <= SERJOYSTICK_OUT[6];
 		end else begin
 		SER_OPT  <= 0;
-		// [MiSTer-DB9 BEGIN] - SerJoystick relay falls through to joydb USER_OUT_DRIVE
-		USER_OUT <= USER_OUT_DRIVE;
-		// [MiSTer-DB9 END]
 		//USER_OUT <= '1;
 	end
 end
+
+// [MiSTer-DB9 BEGIN] - combinational USER_OUT relay (zero CDC vs CLK_JOY).
+// Previous clocked latch added a clk_sys/CLK_JOY CDC skew on USER_IO[2] (2P-MUX
+// SEL) vs USER_IO[0] (TH/SELECT) that broke joydb9md's 6-btn MD handshake
+// through the octopod 2P adapter. Mirrors MegaDrive.sv pattern.
+always_comb begin
+	USER_OUT = USER_OUT_DRIVE;
+	if (status[45]) begin
+		USER_OUT[1] = SERJOYSTICK_OUT[2];
+		USER_OUT[0] = SERJOYSTICK_OUT[6];
+		USER_OUT[5] = SERJOYSTICK_OUT[0];
+		USER_OUT[3] = SERJOYSTICK_OUT[4];
+		USER_OUT[2] = SERJOYSTICK_OUT[3];
+		USER_OUT[6] = SERJOYSTICK_OUT[5];
+		USER_OUT[7] = SERJOYSTICK_OUT[1];
+		USER_OUT[4] = 1'b0; //1P selects physical P1
+	end
+end
+// [MiSTer-DB9 END]
 
 
 assign {UART_RTS, UART_DTR} = 1;
