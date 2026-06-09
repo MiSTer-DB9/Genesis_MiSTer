@@ -432,8 +432,15 @@ wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
 // ZY XMS CBA UDLR
-wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : {joydb_1[9],joydb_1[8],joydb_1[7],joydb_1[11],joydb_1[10],joydb_1[6:0]}) : joystick_0_USB;
-wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : {joydb_2[9],joydb_2[8],joydb_2[7],joydb_2[11],joydb_2[10],joydb_2[6:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: programmable remap matrix
+// joydb_*_mapped carry the DB9/DB15/Saturn buttons rewired into MiSTer-standard
+// order (same bit layout as joystick_*_USB) per the user's per-core/per-devtype
+// map streamed over UIO 0xFD. The CONF_STR-derived default (gamepad_defaults)
+// reproduces the old hardcoded {joydb_1[9],joydb_1[8],...} MD permutation; layouts
+// are now redefinable in the OSD "Define DB9 buttons" flow.
+wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1_mapped[11:0]) : joystick_0_USB;
+wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2_mapped[11:0]) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// [MiSTer-DB9 END]
 wire [31:0] joystick_2 = joydb_2ena ? joystick_0_USB : joydb_1ena ? joystick_1_USB : joystick_2_USB;
 wire [31:0] joystick_3 = joydb_2ena ? joystick_1_USB : joydb_1ena ? joystick_2_USB : joystick_3_USB;
 
