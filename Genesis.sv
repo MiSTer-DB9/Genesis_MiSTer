@@ -220,8 +220,17 @@ wire  [15:0] joydb_1, joydb_2;
 wire         joydb_1ena, joydb_2ena;
 wire  [15:0] joy_raw_payload;
 
+// [MiSTer-DB9 BEGIN] - DB9 programmable-remap matrix wires
+// joydb_*_mapped = MiSTer-standard joystick words (consumed in Layer B);
+// db9_remap_* = 0xFD selector stream driven by the hps_io instance.
+wire  [15:0] joydb_1_mapped, joydb_2_mapped;
+wire         db9_remap_cmd;
+wire   [5:0] db9_remap_byte_cnt;
+wire  [15:0] db9_remap_din;
+// [MiSTer-DB9 END]
 joydb joydb (
   .clk             ( CLK_JOY         ),
+  .clk_sys         ( clk_sys            ),
   .USER_IN         ( USER_IN         ),
   .OSD_STATUS          ( OSD_STATUS          ),
   .snac_active         ( snac_active         ),
@@ -236,6 +245,11 @@ joydb joydb (
   .joydb_2         ( joydb_2         ),
   .joydb_1ena      ( joydb_1ena      ),
   .joydb_2ena      ( joydb_2ena      ),
+  .remap_cmd       ( db9_remap_cmd      ),
+  .remap_byte_cnt  ( db9_remap_byte_cnt ),
+  .remap_din       ( db9_remap_din      ),
+  .joydb_1_mapped  ( joydb_1_mapped     ),
+  .joydb_2_mapped  ( joydb_2_mapped     ),
   .joy_raw         ( joy_raw_payload )
 );
 
@@ -418,8 +432,15 @@ wire [21:0] gamma_bus;
 wire [15:0] sdram_sz;
 
 // ZY XMS CBA UDLR
-wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : {joydb_1[9],joydb_1[8],joydb_1[7],joydb_1[11],joydb_1[10],joydb_1[6:0]}) : joystick_0_USB;
-wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : {joydb_2[9],joydb_2[8],joydb_2[7],joydb_2[11],joydb_2[10],joydb_2[6:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: programmable remap matrix
+// joydb_*_mapped carry the DB9/DB15/Saturn buttons rewired into MiSTer-standard
+// order (same bit layout as joystick_*_USB) per the user's per-core/per-devtype
+// map streamed over UIO 0xFD. The CONF_STR-derived default (gamepad_defaults)
+// reproduces the old hardcoded {joydb_1[9],joydb_1[8],...} MD permutation; layouts
+// are now redefinable in the OSD "Define DB9 buttons" flow.
+wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1_mapped[11:0]) : joystick_0_USB;
+wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2_mapped[11:0]) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// [MiSTer-DB9 END]
 wire [31:0] joystick_2 = joydb_2ena ? joystick_0_USB : joydb_1ena ? joystick_1_USB : joystick_2_USB;
 wire [31:0] joystick_3 = joydb_2ena ? joystick_1_USB : joydb_1ena ? joystick_2_USB : joystick_3_USB;
 
@@ -476,6 +497,10 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 
 	// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joy_raw
 	.joy_raw(OSD_STATUS ? joy_raw_payload : 16'b0),
+	// programmable remap matrix selector load (UIO_DB9_MAP 0xFD)
+	.db9_remap_cmd(db9_remap_cmd),
+	.db9_remap_byte_cnt(db9_remap_byte_cnt),
+	.db9_remap_din(db9_remap_din),
 	// [MiSTer-DB9 END]
 	// [MiSTer-DB9-Pro BEGIN] - Saturn key gate
 	.saturn_unlocked(saturn_unlocked),
